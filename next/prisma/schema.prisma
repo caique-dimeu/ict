@@ -1,0 +1,158 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model deadlines {
+  id              Int              @id @default(autoincrement())
+  project_id      Int
+  description     String           @db.VarChar(255)
+  due_date        DateTime         @db.Date
+  status          feedback_status? @default(pending)
+  completion_date DateTime?        @db.Timestamp(6)
+  projects        projects         @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model documents {
+  id          Int       @id @default(autoincrement())
+  project_id  Int
+  history_id  Int
+  file_url    String    @db.VarChar(255)
+  file_type   String    @db.VarChar(20)
+  uploaded_at DateTime? @default(now()) @db.Timestamp(6)
+  history     history   @relation(fields: [history_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  projects    projects  @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model feedbacks {
+  id                 Int         @id @default(autoincrement())
+  history_id         Int
+  user_id            Int
+  parent_feedback_id Int?
+  content            String
+  posted_at          DateTime?   @default(now()) @db.Timestamp(6)
+  history            history     @relation(fields: [history_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  feedbacks          feedbacks?  @relation("feedbacksTofeedbacks", fields: [parent_feedback_id], references: [id], onUpdate: NoAction)
+  other_feedbacks    feedbacks[] @relation("feedbacksTofeedbacks")
+  users              users       @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model history {
+  id                   Int            @id @default(autoincrement())
+  project_id           Int
+  changed_by           Int
+  status_snapshot      history_status
+  title_snapshot       String?        @db.VarChar(255)
+  description_snapshot String?
+  change_date          DateTime?      @default(now()) @db.Timestamp(6)
+  documents            documents[]
+  feedbacks            feedbacks[]
+  users                users          @relation(fields: [changed_by], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  projects             projects       @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model notification_users {
+  notification_id Int
+  receiver_id     Int
+  notifications   notifications @relation(fields: [notification_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users           users         @relation(fields: [receiver_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([notification_id, receiver_id])
+}
+
+model notifications {
+  id                 Int                  @id @default(autoincrement())
+  user_id            Int
+  message            String
+  seen               Boolean?             @default(false)
+  created_at         DateTime?            @default(now()) @db.Timestamp(6)
+  notification_users notification_users[]
+  users              users                @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model permissions {
+  id                                   Int       @id @default(autoincrement())
+  user_id                              Int
+  can_edit_project                     Boolean?  @default(false)
+  can_manage_users                     Boolean?  @default(false)
+  assigned_by                          Int
+  assigned_at                          DateTime? @default(now()) @db.Timestamp(6)
+  users_permissions_assigned_byTousers users     @relation("permissions_assigned_byTousers", fields: [assigned_by], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users_permissions_user_idTousers     users     @relation("permissions_user_idTousers", fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model projects {
+  id                               Int              @id @default(autoincrement())
+  title                            String           @db.VarChar(255)
+  description                      String
+  student_id                       Int
+  advisor_id                       Int?
+  status                           project_status?  @default(em_andamento)
+  research_group_id                Int?
+  created_at                       DateTime?        @default(now()) @db.Timestamp(6)
+  updated_at                       DateTime?        @default(now()) @db.Timestamp(6)
+  deadlines                        deadlines[]
+  documents                        documents[]
+  history                          history[]
+  users_projects_advisor_idTousers users?           @relation("projects_advisor_idTousers", fields: [advisor_id], references: [id], onUpdate: NoAction)
+  research_groups                  research_groups? @relation(fields: [research_group_id], references: [id], onUpdate: NoAction)
+  users_projects_student_idTousers users            @relation("projects_student_idTousers", fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model research_groups {
+  id          Int        @id @default(autoincrement())
+  title       String     @db.VarChar(255)
+  description String?
+  advisor_id  Int
+  created_at  DateTime?  @default(now()) @db.Timestamp(6)
+  updated_at  DateTime?  @default(now()) @db.Timestamp(6)
+  projects    projects[]
+  users       users      @relation(fields: [advisor_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model users {
+  id                                         Int                  @id @default(autoincrement())
+  name                                       String               @db.VarChar(100)
+  email                                      String               @unique @db.VarChar(100)
+  password_hash                              String               @db.VarChar(255)
+  role                                       user_role
+  avatar                                     String?              @db.VarChar(255)
+  created_at                                 DateTime?            @default(now()) @db.Timestamp(6)
+  updated_at                                 DateTime?            @default(now()) @db.Timestamp(6)
+  feedbacks                                  feedbacks[]
+  history                                    history[]
+  notification_users                         notification_users[]
+  notifications                              notifications[]
+  permissions_permissions_assigned_byTousers permissions[]        @relation("permissions_assigned_byTousers")
+  permissions_permissions_user_idTousers     permissions[]        @relation("permissions_user_idTousers")
+  projects_projects_advisor_idTousers        projects[]           @relation("projects_advisor_idTousers")
+  projects_projects_student_idTousers        projects[]           @relation("projects_student_idTousers")
+  research_groups                            research_groups[]
+}
+
+enum feedback_status {
+  pending
+  completed
+}
+
+enum history_status {
+  em_andamento @map("em andamento")
+  finalizado
+  rejeitado
+}
+
+enum project_status {
+  em_andamento @map("em andamento")
+  finalizado
+  rejeitado
+}
+
+enum user_role {
+  student
+  advisor
+  admin
+}

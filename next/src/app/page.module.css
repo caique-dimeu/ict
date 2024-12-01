@@ -1,0 +1,41 @@
+.container {
+  padding: 20px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.loggedIn {
+  display: flex;
+  align-items: center;
+}
+
+.button {
+  background-color: #007BFF;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  cursor: pointer;
+  margin-left: 10px;
+}
+
+.input {
+  padding: 8px;
+  margin-bottom: 10px;
+  width: 300px;
+}
+
+.crudContainer {
+  margin-top: 30px;
+}
+
+.deleteButton {
+  background-color: red;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  cursor: pointer;
+}
